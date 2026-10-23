@@ -1,0 +1,106 @@
+import pg from 'pg';
+import type { Pool, PoolClient } from 'pg';
+import { env } from '../config/env';
+import { describeError } from './errors';
+import { logger } from './logger';
+
+/**
+ * Something that can run a query: either the shared pool or a dedicated client
+ * checked out for a transaction. Repository functions take one of these so the
+ * same function works standalone (`getPool()`) and inside `withClient()`.
+ */
+export type Queryable = Pool | PoolClient;
+
+/**
+ * Shared PostgreSQL connection pool.
+ *
+ * Created lazily rather than at import time so that importing anything from
+ * this module (e.g. in a unit test) does not open sockets as a side effect.
+ */
+let pool: Pool | undefined;
+
+export function getPool(): Pool {
+  if (!pool) {
+    pool = new pg.Pool({
+      connectionString: env.DATABASE_URL,
+      // Fail fast. Without this a health check or request can hang for the OS
+      // default TCP timeout when the database is unreachable.
+      connectionTimeoutMillis: 2000,
+      idleTimeoutMillis: 10_000,
+      max: 10,
+    });
+
+    // REQUIRED, not optional: a pg Pool with no 'error' listener will throw an
+    // uncaught exception and kill the process when an *idle* client errors
+    // (e.g. the database restarts). We log and let the pool recover instead.
+    pool.on('error', (err: Error) => {
+      logger.error('pg_pool_error', describeError(err));
+    });
+  }
+
+  return pool;
+}
+
+/**
+ * Is the database reachable and answering queries? Never throws — a dead
+ * dependency is something we report, not something that crashes the API.
+ */
+export async function pingDatabase(): Promise<boolean> {
+  try {
+    const result = await getPool().query<{ ok: number }>('SELECT 1 AS ok');
+    return result.rows[0]?.ok === 1;
+  } catch (err) {
+    logger.warn('db_ping_failed', describeError(err));
+    return false;
+  }
+}
+
+/** Run a callback with a dedicated client (use for transactions later). */
+export async function withClient<T>(fn: (client: PoolClient) => Promise<T>): Promise<T> {
+  const client = await getPool().connect();
+  try {
+    return await fn(client);
+  } finally {
+    client.release();
+  }
+}
+
+/**
+ * Run a callback inside a transaction, committing on return and rolling back on
+ * throw.
+ *
+ * Worth a helper rather than hand-written BEGIN/COMMIT at each call site: a
+ * multi-step write that forgets its ROLLBACK does not just lose the rollback, it
+ * returns a client to the pool with an open transaction, and the next unrelated
+ * request inherits it. The ROLLBACK here is itself guarded — if the connection
+ * died mid-transaction the rollback will fail too, and that must not mask the
+ * error that actually caused the failure.
+ */
+export async function withTransaction<T>(fn: (client: PoolClient) => Promise<T>): Promise<T> {
+  return withClient(async (client) => {
+    await client.query('BEGIN');
+    try {
+      const result = await fn(client);
+      await client.query('COMMIT');
+      return result;
+    } catch (err) {
+      try {
+        await client.query('ROLLBACK');
+      } catch (rollbackErr) {
+        logger.error('pg_rollback_failed', describeError(rollbackErr));
+      }
+      throw err;
+    }
+  });
+}
+
+/**
+ * Close all pooled connections. Called on shutdown and in tests — an open pool
+ * keeps the Node event loop alive and makes the process hang on exit.
+ */
+export async function closeDb(): Promise<void> {
+  if (pool) {
+    await pool.end();
+    pool = undefined;
+  }
+}

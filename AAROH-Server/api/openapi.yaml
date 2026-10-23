@@ -1,0 +1,997 @@
+openapi: 3.0.3
+info:
+  title: Aaroh API
+  version: "1.0.0"
+  description: >
+    Public v1 API for the Aaroh soil-advisory platform. The mobile app talks only
+    to this service; the Python inference service (§6.3) is private and never
+    exposed here.
+
+
+    Authentication has three doors, all of which answer with the *same* envelope
+    — `{ farmer, ...TokenBundle }` — so the client stores a session identically no
+    matter how it was obtained:
+
+
+    * **phone** — `POST /v1/auth/otp/request` → `/v1/auth/otp/verify`
+
+    * **email** — `POST /v1/auth/email/register` | `/v1/auth/email/login`, or
+      passwordless `POST /v1/auth/email/otp/request` → `/v1/auth/email/otp/verify`;
+      forgotten passwords go `POST /v1/auth/password/forgot` → `/password/reset`
+
+    * **google** — `POST /v1/auth/google` with the ID token from the native SDK
+
+
+    A session is a short-lived HS256 access token plus a rotating opaque refresh
+    token. A farmer may hold any combination of identifiers (phone, email, Google),
+    so every one of them is nullable on the Farmer schema.
+
+
+    Money path (§10): POST /v1/fields/{id}/recommendations turns a soil reading
+    into costed crop + fertiliser advice, in whole 50 kg bags and rupees.
+servers:
+  - url: http://localhost:3000
+    description: Local development
+
+tags:
+  - name: health
+  - name: auth
+  - name: me
+  - name: devices
+  - name: fields
+  - name: readings
+  - name: recommendations
+  - name: config
+  - name: feedback
+
+paths:
+  /v1/health:
+    get:
+      tags: [health]
+      summary: Liveness + dependency check
+      security: []
+      responses:
+        "200":
+          description: Service healthy
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /v1/auth/otp/request:
+    post:
+      tags: [auth]
+      summary: Request a one-time login code
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phone]
+              properties:
+                phone: { $ref: "#/components/schemas/Phone" }
+      responses:
+        "200":
+          description: Code issued (dev stub returns dev_code in non-production)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sent: { type: boolean, example: true }
+                  expires_in_s: { type: integer, example: 300 }
+                  dev_code: { type: string, nullable: true, example: "000000" }
+        "429": { $ref: "#/components/responses/Error" }
+
+  /v1/auth/otp/verify:
+    post:
+      tags: [auth]
+      summary: Exchange a valid code for tokens (creates the farmer on first login)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phone, code]
+              properties:
+                phone: { $ref: "#/components/schemas/Phone" }
+                code: { type: string, pattern: "^\\d{4,8}$", example: "000000" }
+      responses:
+        "200":
+          description: Authenticated
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - type: object
+                    properties:
+                      farmer: { $ref: "#/components/schemas/Farmer" }
+                  - $ref: "#/components/schemas/TokenBundle"
+        "400": { $ref: "#/components/responses/Error" }
+        "401": { $ref: "#/components/responses/Error" }
+
+  /v1/auth/email/register:
+    post:
+      tags: [auth]
+      summary: Create an account with email + password and sign in
+      security: []
+      description: >
+        Signs in immediately; a verification code is emailed alongside but the
+        session does not wait on it — `farmer.email_verified` simply stays false
+        until the code is redeemed via /v1/auth/email/otp/verify.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { $ref: "#/components/schemas/Email" }
+                password: { $ref: "#/components/schemas/Password" }
+                name: { type: string, minLength: 2, maxLength: 120 }
+      responses:
+        "201":
+          description: Account created and authenticated
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Session"
+                  - type: object
+                    properties:
+                      verification:
+                        type: object
+                        properties:
+                          sent: { type: boolean }
+                          dev_code: { type: string, nullable: true }
+        "400": { $ref: "#/components/responses/Error" }
+        "409":
+          description: EMAIL_TAKEN — an account already uses this address
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+
+  /v1/auth/email/login:
+    post:
+      tags: [auth]
+      summary: Sign in with email + password
+      security: []
+      description: >
+        Unknown address and wrong password both answer an identical 401
+        INVALID_CREDENTIALS (with equalised timing), so this endpoint cannot be used
+        to discover which addresses are registered.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { $ref: "#/components/schemas/Email" }
+                password: { type: string, minLength: 1 }
+      responses:
+        "200":
+          description: Authenticated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Session" }
+        "400": { $ref: "#/components/responses/Error" }
+        "401": { $ref: "#/components/responses/Error" }
+
+  /v1/auth/email/otp/request:
+    post:
+      tags: [auth]
+      summary: Email a one-time code (passwordless login, or address verification)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, purpose]
+              properties:
+                email: { $ref: "#/components/schemas/Email" }
+                purpose:
+                  type: string
+                  enum: [login, email_verify]
+                  description: >
+                    `login` is passwordless sign-in and creates the account on first
+                    use, mirroring the phone flow. `email_verify` confirms the
+                    address on an existing account.
+      responses:
+        "200":
+          description: Code issued
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CodeIssued" }
+        "400": { $ref: "#/components/responses/Error" }
+        "429": { $ref: "#/components/responses/Error" }
+
+  /v1/auth/email/otp/verify:
+    post:
+      tags: [auth]
+      summary: Redeem an email code for a session
+      security: []
+      description: >
+        A `login` code creates a passwordless, already-verified account on first
+        use. Redeeming any email code also marks the address verified.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, code, purpose]
+              properties:
+                email: { $ref: "#/components/schemas/Email" }
+                code: { $ref: "#/components/schemas/Code" }
+                purpose: { type: string, enum: [login, email_verify] }
+      responses:
+        "200":
+          description: Authenticated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Session" }
+        "400": { $ref: "#/components/responses/Error" }
+        "401": { $ref: "#/components/responses/Error" }
+
+  /v1/auth/password/forgot:
+    post:
+      tags: [auth]
+      summary: Email a password-reset code
+      security: []
+      description: >
+        Always 200, even for an address with no account — the response must not
+        reveal which addresses are registered. Show the same "check your inbox"
+        message either way.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { $ref: "#/components/schemas/Email" }
+      responses:
+        "200":
+          description: Reported as sent (whether or not the account exists)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CodeIssued" }
+        "429": { $ref: "#/components/responses/Error" }
+
+  /v1/auth/password/reset:
+    post:
+      tags: [auth]
+      summary: Set a new password with a reset code, and sign in
+      security: []
+      description: >
+        Revokes every existing refresh token for the account: a reset is how a
+        farmer recovers from a compromised password, so old sessions must not
+        survive it.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, code, password]
+              properties:
+                email: { $ref: "#/components/schemas/Email" }
+                code: { $ref: "#/components/schemas/Code" }
+                password: { $ref: "#/components/schemas/Password" }
+      responses:
+        "200":
+          description: Password changed and authenticated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Session" }
+        "400": { $ref: "#/components/responses/Error" }
+        "401": { $ref: "#/components/responses/Error" }
+
+  /v1/auth/google:
+    post:
+      tags: [auth]
+      summary: Exchange a Google ID token for a session
+      security: []
+      description: >
+        The client sends the **ID token** minted by the native Google Sign-In SDK.
+        The server verifies its RS256 signature against Google's published keys and
+        requires `aud` to equal its own GOOGLE_WEB_CLIENT_ID — without that audience
+        check, a token minted for any other app would be accepted. The client's
+        EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID must therefore hold the same value.
+
+
+        Account resolution: match on the immutable `sub`; else link to an existing
+        account by email, but **only when Google reports the email as verified**;
+        else create a new account.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [id_token]
+              properties:
+                id_token:
+                  type: string
+                  description: Compact JWS (three dot-separated segments).
+      responses:
+        "200":
+          description: Authenticated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Session" }
+        "401":
+          description: GOOGLE_TOKEN_INVALID — signature, issuer, audience or expiry failed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "409":
+          description: ACCOUNT_CONFLICT — that email is already linked to a different Google account
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "503":
+          description: GOOGLE_NOT_CONFIGURED, or Google's key service was unreachable
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+
+  /v1/auth/refresh:
+    post:
+      tags: [auth]
+      summary: Rotate a refresh token for a new bundle
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refresh_token]
+              properties:
+                refresh_token: { type: string }
+      responses:
+        "200":
+          description: New token bundle
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TokenBundle" }
+        "401": { $ref: "#/components/responses/Error" }
+
+  /v1/auth/logout:
+    post:
+      tags: [auth]
+      summary: Revoke a refresh token (sign out)
+      security: []
+      description: >
+        Unauthenticated on purpose: the refresh token *is* the credential here, and
+        sign-out must still work once the access token has expired. Always 200 —
+        an unknown or already-revoked token reports `revoked: 0` rather than an
+        error, so the client can clear local state unconditionally and nothing
+        discloses whether the presented token was live.
+
+
+        Without this the client only *forgets* the token while the row stays valid
+        for its full 30 days.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refresh_token]
+              properties:
+                refresh_token: { type: string }
+                all:
+                  type: boolean
+                  default: false
+                  description: Revoke every live session for the farmer ("sign out everywhere").
+      responses:
+        "200":
+          description: Revoked
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  revoked: { type: integer, example: 1 }
+
+  /v1/me:
+    get:
+      tags: [me]
+      summary: The authenticated farmer's profile
+      responses:
+        "200":
+          description: Profile
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  farmer: { $ref: "#/components/schemas/Farmer" }
+        "401": { $ref: "#/components/responses/Error" }
+    patch:
+      tags: [me]
+      summary: Update the authenticated farmer's profile
+      description: >
+        Partial patch, at least one field required. The farmer id comes from the
+        access token, never the body. Identity and privilege fields (phone, email,
+        google_sub, role) are deliberately not patchable — changing an email is an
+        identity change and needs its own verified flow.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              minProperties: 1
+              additionalProperties: false
+              properties:
+                name: { type: string, minLength: 2, maxLength: 120 }
+                preferred_lang: { type: string, enum: [hi, en] }
+                region_code: { type: string }
+      responses:
+        "200":
+          description: Updated profile
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  farmer: { $ref: "#/components/schemas/Farmer" }
+        "400": { $ref: "#/components/responses/Error" }
+        "401": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /v1/devices/pair:
+    post:
+      tags: [devices]
+      summary: Claim (pair) a probe by serial
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [serial]
+              properties:
+                serial: { type: string, minLength: 3, maxLength: 120 }
+                firmware_version: { type: string, maxLength: 60 }
+      responses:
+        "200":
+          description: Device paired
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  device: { $ref: "#/components/schemas/Device" }
+
+  /v1/devices:
+    get:
+      tags: [devices]
+      summary: The caller's paired devices
+      responses:
+        "200":
+          description: Devices
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  devices:
+                    type: array
+                    items: { $ref: "#/components/schemas/Device" }
+
+  /v1/fields:
+    get:
+      tags: [fields]
+      summary: The caller's fields
+      responses:
+        "200":
+          description: Fields
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  fields:
+                    type: array
+                    items: { $ref: "#/components/schemas/Field" }
+    post:
+      tags: [fields]
+      summary: Create a field
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string, minLength: 1, maxLength: 120 }
+                area_ha: { type: number, exclusiveMinimum: 0, maximum: 100000 }
+                region_code: { type: string, default: chambal }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  field: { $ref: "#/components/schemas/Field" }
+
+  /v1/fields/{id}:
+    get:
+      tags: [fields]
+      summary: A field plus its latest reading
+      parameters: [ { $ref: "#/components/parameters/FieldId" } ]
+      responses:
+        "200":
+          description: Field detail
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  field: { $ref: "#/components/schemas/Field" }
+                  latest_reading:
+                    oneOf:
+                      - $ref: "#/components/schemas/Reading"
+                      - type: "null"
+        "404": { $ref: "#/components/responses/Error" }
+
+  /v1/fields/{id}/readings:
+    get:
+      tags: [fields, readings]
+      summary: The field's readings, newest first
+      parameters: [ { $ref: "#/components/parameters/FieldId" } ]
+      responses:
+        "200":
+          description: Readings
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  readings:
+                    type: array
+                    items: { $ref: "#/components/schemas/Reading" }
+
+  /v1/fields/{id}/recommendations:
+    post:
+      tags: [recommendations]
+      summary: Money path — generate costed crop + fertiliser advice (§10)
+      description: >
+        Runs the field's latest (or a pinned) reading through the AI ranker and
+        the deterministic agronomy engine. An empty body is valid: it uses the
+        latest reading, the field's area, and the default agro-climatic context.
+      parameters: [ { $ref: "#/components/parameters/FieldId" } ]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reading_id: { type: string, format: uuid }
+                area_ha: { type: number, exclusiveMinimum: 0, maximum: 100000 }
+                season: { type: string, example: Rabi }
+                soil_type: { type: string, example: alluvial }
+                humidity: { type: number, minimum: 0, maximum: 100 }
+                rainfall: { type: number, minimum: 0 }
+                budget_hint: { type: number, minimum: 0 }
+      responses:
+        "201":
+          description: Recommendation created and persisted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  recommendation: { $ref: "#/components/schemas/Recommendation" }
+        "404": { $ref: "#/components/responses/Error" }
+        "422":
+          description: >
+            Reading missing required soil fields (READING_INCOMPLETE), field has
+            no readings (NO_READING), or no area set (AREA_REQUIRED).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "502": { $ref: "#/components/responses/Error" }
+        "503": { $ref: "#/components/responses/Error" }
+        "504": { $ref: "#/components/responses/Error" }
+    get:
+      tags: [recommendations]
+      summary: The field's saved recommendations, newest first
+      parameters: [ { $ref: "#/components/parameters/FieldId" } ]
+      responses:
+        "200":
+          description: Recommendations
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  recommendations:
+                    type: array
+                    items: { $ref: "#/components/schemas/Recommendation" }
+
+  /v1/readings:
+    post:
+      tags: [readings]
+      summary: Ingest one reading or a batch (idempotent by idempotency_key)
+      description: >
+        Accepts either a single reading object or an envelope { readings: [...] }.
+        Repeats carrying the same idempotency_key are no-ops.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: "#/components/schemas/ReadingInput"
+                - type: object
+                  required: [readings]
+                  properties:
+                    readings:
+                      type: array
+                      minItems: 1
+                      maxItems: 500
+                      items: { $ref: "#/components/schemas/ReadingInput" }
+      responses:
+        "201":
+          description: Ingest result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  readings:
+                    type: array
+                    items: { $ref: "#/components/schemas/Reading" }
+                  created_count: { type: integer }
+                  duplicate_count: { type: integer }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /v1/config/region/{code}:
+    get:
+      tags: [config]
+      summary: Active agronomy configuration for a region
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema: { type: string, example: chambal }
+      responses:
+        "200":
+          description: Region config
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  config: { $ref: "#/components/schemas/RegionConfig" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /v1/feedback:
+    post:
+      tags: [feedback]
+      summary: Record ground-truth outcome for a recommendation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [recommendation_id]
+              properties:
+                recommendation_id: { type: string, format: uuid }
+                chosen_crop: { type: string, maxLength: 80 }
+                actually_planted: { type: string, maxLength: 80 }
+                outcome: { type: string, maxLength: 2000 }
+                lab_test: { type: object, additionalProperties: true }
+      responses:
+        "201":
+          description: Feedback recorded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  feedback: { $ref: "#/components/schemas/Feedback" }
+        "404": { $ref: "#/components/responses/Error" }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  security:
+    - bearerAuth: []
+  parameters:
+    FieldId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+  responses:
+    Error:
+      description: Error envelope
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+  schemas:
+    Phone:
+      type: string
+      pattern: "^\\+?\\d{10,15}$"
+      example: "+919876543210"
+    Email:
+      type: string
+      format: email
+      maxLength: 254
+      description: Lower-cased and trimmed server-side; uniqueness is case-insensitive.
+      example: farmer@example.com
+    Password:
+      type: string
+      minLength: 8
+      maxLength: 128
+      description: >
+        At least 8 characters including a letter and a digit. The 128-character
+        ceiling exists because the scrypt work factor is paid on the server's CPU.
+        NOTE: this policy is enforced on register and reset, but deliberately NOT
+        on login — a password stored before a policy change must still be usable.
+      example: paddy2024
+    Code:
+      type: string
+      pattern: "^\\d{6}$"
+      description: Six-digit one-time code. Single-use, and shares the OTP attempt ceiling.
+      example: "123456"
+    ErrorEnvelope:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code: { type: string, example: VALIDATION_ERROR }
+            message: { type: string }
+            details: {}
+        requestId: { type: string }
+    TokenBundle:
+      type: object
+      properties:
+        access_token: { type: string }
+        refresh_token: { type: string }
+        token_type: { type: string, example: Bearer }
+        expires_in: { type: integer, example: 900 }
+        role: { type: string, enum: [farmer, agent, admin] }
+    Farmer:
+      type: object
+      description: >
+        A farmer holds any combination of identifiers depending on how they signed
+        up, so phone and email are both nullable — an email-only or Google-only
+        account has no phone number. A DB CHECK guarantees at least one of phone,
+        email or google_sub is present. google_sub itself is never exposed.
+      properties:
+        id: { type: string, format: uuid }
+        phone: { type: string, nullable: true }
+        email: { type: string, format: email, nullable: true }
+        email_verified:
+          type: boolean
+          description: >
+            True once the address was proven by a code, or vouched for by Google.
+            Only a verified address may be linked to a Google account.
+        name: { type: string, nullable: true }
+        preferred_lang: { type: string, enum: [hi, en] }
+        region_code: { type: string }
+        role: { type: string, enum: [farmer, agent, admin] }
+        created_at: { type: string, format: date-time }
+    Session:
+      description: What every successful sign-in returns, whichever door was used.
+      allOf:
+        - type: object
+          properties:
+            farmer: { $ref: "#/components/schemas/Farmer" }
+        - $ref: "#/components/schemas/TokenBundle"
+    CodeIssued:
+      type: object
+      description: >
+        Response to any "send me a code" request. `dev_code` is populated only
+        outside production (and when the mail transport is the console stub), so the
+        flow is testable without an SMS or email provider.
+      properties:
+        sent: { type: boolean, example: true }
+        expires_in_s: { type: integer, example: 600 }
+        dev_code: { type: string, nullable: true, example: "000000" }
+    Device:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        serial: { type: string }
+        firmware_version: { type: string, nullable: true }
+        owner_farmer_id: { type: string, format: uuid, nullable: true }
+        last_seen_at: { type: string, format: date-time, nullable: true }
+        created_at: { type: string, format: date-time }
+    Field:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        farmer_id: { type: string, format: uuid }
+        name: { type: string, nullable: true }
+        area_ha: { type: number, nullable: true }
+        region_code: { type: string }
+        centroid: { nullable: true, description: GeoJSON Point or null }
+        boundary: { nullable: true, description: GeoJSON Polygon or null }
+        created_at: { type: string, format: date-time }
+    ReadingInput:
+      type: object
+      description: NPK are elemental mg/kg (probe basis), never oxide.
+      properties:
+        field_id: { type: string, format: uuid }
+        device_id: { type: string, format: uuid }
+        source: { type: string, enum: [probe_ble, manual, import] }
+        taken_at: { type: string, format: date-time }
+        n_mgkg: { type: number, minimum: 0 }
+        p_mgkg: { type: number, minimum: 0 }
+        k_mgkg: { type: number, minimum: 0 }
+        ph: { type: number, minimum: 3, maximum: 10 }
+        ec_uscm: { type: number, minimum: 0 }
+        moisture_vwc: { type: number, minimum: 0, maximum: 100 }
+        soil_temp_c: { type: number }
+        npk_is_calibrated: { type: boolean, default: false }
+        idempotency_key: { type: string, minLength: 1, maxLength: 200 }
+        raw_frame: { type: string, maxLength: 10000 }
+      required: [source]
+    Reading:
+      allOf:
+        - $ref: "#/components/schemas/ReadingInput"
+        - type: object
+          properties:
+            id: { type: string, format: uuid }
+            location: { nullable: true, description: GeoJSON Point or null }
+            created_at: { type: string, format: date-time }
+    NutrientGap:
+      type: object
+      properties:
+        n_kgha: { type: number }
+        p2o5_kgha: { type: number }
+        k2o_kgha: { type: number }
+    ProductLine:
+      type: object
+      properties:
+        name: { type: string, example: DAP }
+        bags_50kg: { type: integer, example: 1 }
+        kg: { type: number, example: 50 }
+        supplies:
+          type: object
+          additionalProperties: { type: number }
+    Fertiliser:
+      type: object
+      properties:
+        products:
+          type: array
+          items: { $ref: "#/components/schemas/ProductLine" }
+        nutrient_gap_kgha: { $ref: "#/components/schemas/NutrientGap" }
+        cost_inr: { type: number, example: 1942 }
+    CropRank:
+      type: object
+      properties:
+        crop: { type: string }
+        crop_hi: { type: string }
+        score: { type: number }
+        rationale_code: { type: string }
+    CropPlan:
+      allOf:
+        - $ref: "#/components/schemas/CropRank"
+        - type: object
+          properties:
+            fertiliser: { $ref: "#/components/schemas/Fertiliser" }
+    RecommendationResult:
+      type: object
+      description: The frozen §6.4 payload the app renders.
+      properties:
+        model_version: { type: string, example: "crop-ranker@1.0.0" }
+        agronomy_version: { type: string, example: "chambal-stcr@2026.08-provisional" }
+        region_code: { type: string }
+        area_ha: { type: number }
+        segment_a:
+          type: array
+          items: { $ref: "#/components/schemas/CropRank" }
+        segment_b:
+          type: array
+          items: { $ref: "#/components/schemas/CropPlan" }
+        warnings:
+          type: array
+          items: { type: string }
+    Recommendation:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        field_id: { type: string, format: uuid }
+        reading_id: { type: string, format: uuid, nullable: true }
+        model_version: { type: string }
+        agronomy_version: { type: string }
+        region_code: { type: string }
+        area_ha: { type: number }
+        result: { $ref: "#/components/schemas/RecommendationResult" }
+        created_at: { type: string, format: date-time }
+    RegionConfig:
+      type: object
+      properties:
+        region_code: { type: string }
+        version: { type: string }
+        agronomy_version: { type: string }
+        provisional: { type: boolean }
+        bag_kg: { type: number, example: 50 }
+        rounding: { type: string, enum: [nearest, up] }
+        class_multipliers:
+          type: object
+          properties:
+            low: { type: number, example: 1.25 }
+            medium: { type: number, example: 1.0 }
+            high: { type: number, example: 0.0 }
+        soil_class_thresholds:
+          type: object
+          additionalProperties:
+            type: object
+            properties:
+              low_max: { type: number }
+              med_max: { type: number }
+        conversion_factors:
+          type: object
+          properties:
+            mgkg_to_kgha: { type: number, example: 1.95 }
+            p_to_p2o5: { type: number, example: 2.291 }
+            k_to_k2o: { type: number, example: 1.205 }
+        products:
+          type: array
+          items:
+            type: object
+            properties:
+              product: { type: string }
+              n_pct: { type: number }
+              p2o5_pct: { type: number }
+              k2o_pct: { type: number }
+              inr_per_bag: { type: number }
+              supplies:
+                type: array
+                items: { type: string }
+        crops:
+          type: array
+          items:
+            type: object
+            properties:
+              crop: { type: string }
+              crop_hi: { type: string }
+              rdf_kgha:
+                type: object
+                properties:
+                  n: { type: number }
+                  p2o5: { type: number }
+                  k2o: { type: number }
+              is_legume: { type: boolean }
+    Feedback:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        recommendation_id: { type: string, format: uuid }
+        farmer_id: { type: string, format: uuid }
+        chosen_crop: { type: string, nullable: true }
+        actually_planted: { type: string, nullable: true }
+        outcome: { type: string, nullable: true }
+        lab_test: { type: object, nullable: true, additionalProperties: true }
+        created_at: { type: string, format: date-time }
+
+security:
+  - bearerAuth: []

@@ -1,0 +1,20 @@
+# Optional keys absent, and values that arrive untidy. Every frame here must be ACCEPTED.
+# Lines starting with # are notes — do not send them.
+
+# Only the three required nutrients. No pH, no GPS, no clock: the app stamps arrival time
+# and the row shows "No GPS fix".
+ID:P-A1,FW:1.0.2,N:118,P:23.5,K:176
+
+# Full sensor set but no GPS and no clock — a stick with neither module fitted.
+ID:P-A1,FW:1.0.2,N:118,P:23.5,K:176,pH:6.8,EC:910,M:21.4,T:26.5
+
+# No FW key: firmware shows as "unknown" rather than rejecting the reading.
+ID:P-A1,N:118,P:23.5,K:176,pH:6.8,Lat:26.21830,Lng:78.18280
+
+# Spaces sprinkled around keys, values, and INSIDE the coordinates. All stripped before
+# parsing, so this must read as 26.21830 / 78.18280 — not as two null coordinates.
+ID:P-A1,FW:1.0.2, N:118 , P:23.5 ,K: 176 ,pH:6.8,EC:910,Lat:26.218 30,Lng:78.182 80,TS:1787994000
+
+# Genuine zeros. Zero nitrogen is a legitimate (if bleak) measurement and must not be
+# confused with a missing value.
+ID:P-A1,FW:1.0.2,N:0,P:0,K:0,pH:7.0,EC:0,M:0,T:0,Lat:26.21830,Lng:78.18280,TS:1787994000

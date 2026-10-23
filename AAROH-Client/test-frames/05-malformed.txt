@@ -1,0 +1,32 @@
+# Frames that must be REJECTED. None of these may produce a row in Analysis.
+# Lines starting with # are notes — do not send them.
+
+# No ID: not an Aaroh frame at all. This is how noise from another peripheral is discarded.
+FW:1.0.2,N:118,P:23.5,K:176,pH:6.8
+
+# ID but no measurement: a truncated fragment, not a reading. Before the framing fix this
+# surfaced as a phantom row with every value null.
+ID:P-A1,FW:1.0.2
+
+# Missing K. N, P and K are all required — the recommendation engine cannot run without
+# them, so a partial nutrient set is worse than no reading.
+ID:P-A1,FW:1.0.2,N:118,P:23.5,pH:6.8,EC:910
+
+# Negative nitrogen: a broken probe, not a soil condition.
+ID:P-A1,FW:1.0.2,N:-40,P:23.5,K:176,pH:6.8
+
+# pH 15 is outside 0–14.
+ID:P-A1,FW:1.0.2,N:118,P:23.5,K:176,pH:15.2
+
+# Moisture over 100% volumetric water content.
+ID:P-A1,FW:1.0.2,N:118,P:23.5,K:176,pH:6.8,M:145
+
+# Soil at 140 °C. Range is −20 to 90; past that the thermistor is the problem.
+ID:P-A1,FW:1.0.2,N:118,P:23.5,K:176,pH:6.8,T:140
+
+# Longitude past 180.
+ID:P-A1,FW:1.0.2,N:118,P:23.5,K:176,pH:6.8,Lat:26.21830,Lng:781.8280
+
+# Frame version above what this build understands. Dropped rather than misread, because a
+# version bump means an existing key changed meaning.
+V:9,ID:P-A1,FW:9.0.0,N:118,P:23.5,K:176,pH:6.8

@@ -1,0 +1,77 @@
+# Aaroh Server — full local stack.
+#
+#   docker compose up --build
+#
+# Brings up three services:
+#   • db  — PostgreSQL 16 + PostGIS 3.4 (your database; no local install needed)
+#   • ai  — Python/FastAPI AI service   (http://localhost:8000/health)
+#   • api — Node/Express API gateway    (http://localhost:3000/v1/health)
+#
+# To point at a cloud database (Neon/Supabase) instead of the local `db`,
+# set the api service's DATABASE_URL to your provider's connection string.
+
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-aaroh}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-aaroh}
+      POSTGRES_DB: ${POSTGRES_DB:-aaroh}
+    ports:
+      # Published on 5433 by default, NOT 5432. If you have PostgreSQL installed
+      # natively on your machine it already owns 5432, and Windows will silently
+      # route localhost:5432 to that one instead of this container — producing a
+      # confusing "password authentication failed" error. Inside compose the port
+      # is still 5432 (see the api service's DATABASE_URL); only the host-side
+      # port changes. Override with DB_HOST_PORT in .env if 5433 is taken too.
+      - "${DB_HOST_PORT:-5433}:5432"
+    volumes:
+      - aaroh_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-aaroh} -d ${POSTGRES_DB:-aaroh}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  ai:
+    build:
+      context: ./ai
+    environment:
+      PORT: 8000
+    ports:
+      - "8000:8000"
+
+  api:
+    build:
+      context: ./api
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: 3000
+      # Inside compose the DB is reachable at host `db`, not localhost.
+      DATABASE_URL: postgres://${POSTGRES_USER:-aaroh}:${POSTGRES_PASSWORD:-aaroh}@db:5432/${POSTGRES_DB:-aaroh}
+      AI_SERVICE_URL: http://ai:8000
+      # Auth settings are NOT baked into the image — they are forwarded from the
+      # root .env so the container and a host-run `npm run dev` (which reads
+      # api/.env) can be configured to the same values. Each falls back to the
+      # schema default in api/src/config/env.ts when unset, so an empty root .env
+      # still boots; Google sign-in simply answers 503 until its client ID is set.
+      JWT_SECRET: ${JWT_SECRET:-dev-insecure-secret-change-me-please}
+      GOOGLE_WEB_CLIENT_ID: ${GOOGLE_WEB_CLIENT_ID:-}
+      GOOGLE_EXTRA_AUDIENCES: ${GOOGLE_EXTRA_AUDIENCES:-}
+      MAIL_TRANSPORT: ${MAIL_TRANSPORT:-console}
+      MAIL_FROM: ${MAIL_FROM:-Aaroh <no-reply@aaroh.local>}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+    ports:
+      - "3000:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+      ai:
+        condition: service_started
+
+volumes:
+  aaroh_db_data:

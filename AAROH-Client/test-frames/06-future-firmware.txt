@@ -1,0 +1,32 @@
+# Framing and forward compatibility — how the app copes with a newer stick and with
+# notifications that do not line up with frame boundaries.
+# Lines starting with # are notes — do not send them.
+
+# A newer firmware that ADDS sensors this build has never heard of (zinc, iron), without
+# bumping V. ACCEPTED: the known values are stored and ZN/FE are recorded in
+# metadata.unknown_keys. This is the case that lets firmware gain a sensor with no
+# coordinated app release, and it is the normal way the protocol grows.
+ID:P-A2,FW:2.1.0,MDL:AP-S2,SID:A-0829,N:118,P:23.5,K:176,pH:6.8,EC:910,M:21.4,T:26.5,Lat:26.21830,Lng:78.18280,TS:1787994000,ZN:4.2,FE:12.7
+
+# The same frame WITH a version bump. REJECTED, and that is correct: V is only bumped when
+# an existing key changes meaning, so a build that predates the change must refuse to guess.
+# Expect no row and no crash. (See 05-malformed.txt for the rest of the rejection cases.)
+V:2,ID:P-A2,FW:2.1.0,N:118,P:23.5,K:176,pH:6.8,EC:910,ZN:4.2
+
+# A value containing colons, to prove parsing splits on the FIRST colon only. ACCEPTED —
+# though TS expects Unix seconds, so this timestamp is ignored and the phone clock is used.
+# The point is that the extra colons must not corrupt the keys after them.
+ID:P-A2,FW:2.1.0,MDL:AP-S2,N:120,P:24,K:178,pH:6.9,EC:915,TS:2026-08-29T09:00:00Z
+
+# Two frames packed into ONE notification with no newline between them. BOTH must appear:
+# the parser re-syncs on each `ID:`, which is also what recovers the stream after a frame
+# arrives without its terminator.
+ID:P-A1,FW:1.0.2,N:118,P:23.5,K:176,pH:6.8,Lat:26.21830,Lng:78.18280ID:P-A1,FW:1.0.2,N:124,P:25.1,K:181,pH:6.7,Lat:26.21845,Lng:78.18305
+
+# A frame sent with NO trailing newline at all. It appears ~400 ms later, on the idle flush.
+ID:P-A1,FW:1.0.2,N:131,P:27.4,K:185,pH:6.6,EC:944,Lat:26.21818,Lng:78.18312
+
+# Reassembly across two notifications is NOT hand-testable: the buffer flushes after 400 ms
+# of silence, and no one can paste and send a second half that fast. A real stick splits a
+# frame only when it exceeds the negotiated MTU, which at 512 bytes never happens for this
+# format. The path is covered by the parser harness instead, not from nRF Connect.
