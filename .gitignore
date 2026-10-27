@@ -1,0 +1,36 @@
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Dependencies
+node_modules/
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# Test, type-check, and tool caches
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+coverage/
+.ipynb_checkpoints/
+
+# Build and generated output
+build/
+dist/
+*.apk
+*.aab
+
+# Project-generated evaluation artifacts and reports
+/evaluation/
+/final evolution report.html
+
+# Local editor and operating-system files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
