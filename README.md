@@ -10,6 +10,8 @@
 [![Python](https://img.shields.io/badge/Python-3.11%20%7C%20FastAPI-22421A?style=for-the-badge&logo=python&logoColor=FFE873)](./AAROH-Server/ai)
 [![Machine Learning](https://img.shields.io/badge/ML-LightGBM%20%7C%20ONNX-FE7F02?style=for-the-badge&logo=onnx&logoColor=white)](./AAROH-Server/ai)
 [![Hardware](https://img.shields.io/badge/Hardware-ESP32%20%7C%20BLE%205.0-187F21?style=for-the-badge&logo=espressif&logoColor=white)](./Hardware)
+[![Download APK](https://img.shields.io/badge/Download%20APK-v0.1.0%20(Android)-1F5A2A?style=for-the-badge&logo=android&logoColor=white)](https://github.com/lovemishra28/AAROH/releases/download/v0.1.0/AgroPulse-v0.1.0.apk)
+[![GitHub Release](https://img.shields.io/badge/Release-v0.1.0-22421A?style=for-the-badge&logo=github&logoColor=white)](https://github.com/lovemishra28/AAROH/releases/tag/v0.1.0)
 
 <br/>
 
@@ -280,13 +282,20 @@ npm run phone
 npm run start:emulator
 ```
 
-> **Direct APK Installation:**
-> A pre-compiled debug APK supporting all 4 architectures (`arm64-v8a`, `armeabi-v7a`, `x86`, `x86_64`) is built and ready at:
-> `AAROH-Client/android/app/build/outputs/apk/debug/app-debug.apk`
+> ### 📦 Download Pre-Built Android APK
+> You can download the compiled APK directly to your phone without compiling from source:
 > 
-> Install directly via ADB:
+> 👉 **[Download AgroPulse-v0.1.0.apk (Direct Download)](https://github.com/lovemishra28/AAROH/releases/download/v0.1.0/AgroPulse-v0.1.0.apk)** *(97 MB • Android 8.0+ • Universal ABI)*
+> 
+> **How to install on phone:**
+> 1. Download the APK file directly on your Android device.
+> 2. Open your device **Downloads** or notification, and tap the APK.
+> 3. If prompted, tap **Settings** and enable **"Install unknown apps"** for your browser.
+> 4. Tap **Install** and open the app!
+> 
+> Or install via ADB from your computer:
 > ```bash
-> adb install -r AAROH-Client/android/app/build/outputs/apk/debug/app-debug.apk
+> adb install -r AgroPulse-v0.1.0.apk
 > ```
 
 ---
