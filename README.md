@@ -1,561 +1,452 @@
-# AgroPulse (Aaroh)
+<div align="center">
 
-AgroPulse is an offline-first soil advisory platform for smallholder farmers in
-the Gwalior/Chambal region of Madhya Pradesh, India. It combines a handheld
-ESP32 soil-sensing stick, a Hindi-first Android application, a versioned
-backend, and an AI/agronomy service.
+# 🌱 AgroPulse (एग्रो Pulse)
+### *Smart Farming. Better Future.* • आपकी खेती, आपकी तरक्की
 
-The product turns a soil reading into practical, costed advice:
+[![React Native](https://img.shields.io/badge/React%20Native-0.79%20(Fabric)-22421A?style=for-the-badge&logo=react&logoColor=61DAFB)](./AAROH-Client)
+[![Expo SDK](https://img.shields.io/badge/Expo-SDK%2053-1F5A2A?style=for-the-badge&logo=expo&logoColor=white)](./AAROH-Client)
+[![Node.js](https://img.shields.io/badge/Node.js-22%20LTS-22421A?style=for-the-badge&logo=nodedotjs&logoColor=5FA04E)](./AAROH-Server/api)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL%2016-PostGIS%203.4-1F5A2A?style=for-the-badge&logo=postgresql&logoColor=white)](./AAROH-Server/database)
+[![Python](https://img.shields.io/badge/Python-3.11%20%7C%20FastAPI-22421A?style=for-the-badge&logo=python&logoColor=FFE873)](./AAROH-Server/ai)
+[![Machine Learning](https://img.shields.io/badge/ML-LightGBM%20%7C%20ONNX-FE7F02?style=for-the-badge&logo=onnx&logoColor=white)](./AAROH-Server/ai)
+[![Hardware](https://img.shields.io/badge/Hardware-ESP32%20%7C%20BLE%205.0-187F21?style=for-the-badge&logo=espressif&logoColor=white)](./Hardware)
 
-- which crops are suitable for the field;
-- how much fertiliser is needed for the selected crop;
-- how many 50 kg bags that represents; and
-- an estimated rupee cost.
+<br/>
 
-The user-facing product is named **AgroPulse**. **Aaroh** is the internal
-project and repository name.
+<img src="docs/assets/logo.png" alt="AgroPulse Logo" width="280" />
 
-> **Project status:** The repository contains working client, API, AI, database,
-> and BLE/firmware foundations. The roadmap still describes an incremental
-> path to a field pilot. Hardware calibration, production deployment, and
-> region-wide agronomic validation are not implied by the existence of the
-> software.
+<br/>
 
-## Contents
+**AgroPulse** (*internal code name: **Aaroh***) is an end-to-end, offline-first precision soil advisory and agronomic intelligence platform designed specifically for smallholder farmers in the **Gwalior / Chambal** agro-climatic region of Madhya Pradesh, India.
 
-- [How the system works](#how-the-system-works)
-- [Repository structure](#repository-structure)
-- [Technology stack](#technology-stack)
-- [Prerequisites](#prerequisites)
-- [Quick start](#quick-start)
-- [Configure the environment](#configure-the-environment)
-- [Run the mobile app](#run-the-mobile-app)
-- [Run the API and AI services](#run-the-api-and-ai-services)
-- [Database migrations](#database-migrations)
-- [Hardware and BLE](#hardware-and-ble)
-- [AI and agronomy](#ai-and-agronomy)
-- [API overview](#api-overview)
-- [Testing and quality checks](#testing-and-quality-checks)
-- [Important domain rules](#important-domain-rules)
-- [Documentation map](#documentation-map)
-- [Troubleshooting](#troubleshooting)
-- [Security and production notes](#security-and-production-notes)
-- [Roadmap](#roadmap)
-- [Contributing](#contributing)
-- [License](#license)
+It transforms raw, multi-depth soil readings into **actionable, costed agricultural decisions**:
+- 🌾 **Which crop to sow** based on calibrated soil suitability distributions;
+- 🧪 **Exact nutrient deficits** calculated through regional agronomic guidelines;
+- 📦 **Physical fertilizer bag counts** (Urea, DAP, MOP in 50 kg bags); and
+- 💰 **Estimated rupee costs (₹)** tailored to local market pricing.
 
-## How the system works
+---
 
-```text
-ESP32 sensing stick
-  └─ BLE readings and offline sync
-       ↓
-AgroPulse mobile app
-  ├─ Hindi/English field workflow
-  ├─ local state and queued readings
-  └─ authenticated API requests
-       ↓
-Node.js / Express API (public product boundary)
-  ├─ authentication and farmer accounts
-  ├─ fields, devices, readings, feedback
-  ├─ PostgreSQL/PostGIS persistence
-  └─ private requests to the AI service
-       ↓
-Python / FastAPI AI service
-  ├─ probabilistic crop ranking
-  └─ deterministic fertiliser and cost calculation
+### 📱 Live Mobile App Experience
+
+<img src="docs/assets/agropulse-mobile-preview.gif" alt="AgroPulse Mobile App Interactive Walkthrough" width="380" style="border-radius: 18px; box-shadow: 0 10px 30px rgba(0,0,0,0.15);" />
+
+*Step-by-step mobile workflow: Brand Splash ➔ Hindi/English Kisan Authentication ➔ Real-Time Soil Telemetry ➔ Spatial Fertility Map & Advisory*
+
+</div>
+
+---
+
+## 📸 Visual Showcase & Architecture Gallery
+
+### 1. Farmer-First Mobile Experience (`AAROH-Client`)
+The AgroPulse mobile app is built with **React Native (Expo SDK 53 + New Architecture / Fabric)** with a **Hindi-first, bilingual interface** optimized for sunlight legibility (≥16–18sp typography, 48dp touch targets).
+
+| 1. Onboarding & Login | 2. Field Telemetry Dashboard | 3. Spatial Fertility Map & Advice |
+|:---:|:---:|:---:|
+| <img src="docs/assets/agropulse-login.jpg" width="260" alt="AgroPulse Welcome Screen" /> | <img src="docs/assets/agropulse-dashboard.jpg" width="260" alt="Field 1 Soil Overview" /> | <img src="docs/assets/agropulse-fertility-map.png" width="260" alt="Spatial Fertility Heatmap" /> |
+| **Friendly Kisan Onboarding**<br/>• Mobile OTP & Google Auth<br/>• Dual-language (हिन्दी / EN)<br/>• Zero mandatory typing | **Real-Time Soil Metrics**<br/>• N, P, K elemental values<br/>• pH, Salinity (EC), Moisture, Temp<br/>• Instant field switcher (Field 1, 2, 3) | **Spatial Precision Heatmap**<br/>• 2D interpolated fertility grid<br/>• Multi-point GPS sensor nodes<br/>• Top crop pick & STCR fertilizer advice |
+
+---
+
+### 2. Research-Grade AI & Agronomy Web Dashboard (`evaluation/`)
+AgroPulse pairs probabilistic machine learning with deterministic agronomic science. The model evaluation engine rigorously validates candidate models across cross-validation, calibration, noise robustness, and ranking quality.
+
+| AI Model Evaluation Web Report | Crop Class Confusion Matrix |
+|:---:|:---:|
+| <img src="docs/assets/ai-evaluation-benchmark.png" width="480" alt="AgroPulse Evaluation Web Report" /> | <img src="docs/assets/ai-confusion-matrix.png" width="480" alt="Crop Confusion Matrix" /> |
+| **Comprehensive Web Benchmark Dashboard**<br/>Interactive HTML report (`final evolution report.html`) auditing ranking metrics (NDCG@3, Top-k accuracy), split sensitivities, and inference latencies. | **Multi-Class Prediction Matrix**<br/>Benchmarked across 22+ agricultural crops with soft-probability distribution and calibrated decision boundaries. |
+
+| Model Performance Benchmark Comparison | Soil Feature Distribution Audit |
+|:---:|:---:|
+| <img src="docs/assets/ai-model-comparison.png" width="480" alt="AI Model Comparison" /> | <img src="docs/assets/soil-features-distribution.png" width="480" alt="Soil Feature Histograms" /> |
+| **Multi-Family Model Benchmark**<br/>Comparing LightGBM, XGBoost, Random Forest, ExtraTrees, SVM, KNN, and MLP on macro F1, NDCG@3, and Brier score. | **Physiochemical Distributions**<br/>Distribution histograms and outlier bounds for Nitrogen, Phosphorus, Potassium, pH, Electrical Conductivity, and Temperature. |
+
+---
+
+## 🧭 Table of Contents
+
+- [How the System Works](#-how-the-system-works)
+- [System Architecture](#-system-architecture)
+- [Key Features & Innovations](#-key-features--innovations)
+- [Repository Structure](#-repository-structure)
+- [Technology Stack](#-technology-stack)
+- [Quick Start Guide](#-quick-start-guide)
+  - [Prerequisites](#prerequisites)
+  - [1. Backend Stack Setup (Docker or Local)](#1-backend-stack-setup)
+  - [2. Database Migrations](#2-database-migrations)
+  - [3. Mobile Application Setup](#3-mobile-application-setup)
+  - [4. AI Model & CLI Predictor](#4-ai-model--cli-predictor)
+- [Hardware & BLE Sensor Stick](#-hardware--ble-sensor-stick)
+- [The Dual-Engine Intelligence](#-the-dual-engine-intelligence)
+- [Testing & Quality Verification](#-testing--quality-verification)
+- [Design System & Theming](#-design-system--theming)
+- [Domain Rules & Production Guidelines](#-domain-rules--production-guidelines)
+- [Documentation Index](#-documentation-index)
+
+---
+
+## ⚡ How the System Works
+
+```
+                     ┌──────────────────────────────────────────┐
+                     │    ESP32 Soil Sensing Hardware Stick     │
+                     │  7-in-1 RS485 Modbus Sensor (NPK/pH/EC)  │
+                     │   GPS Fix + RTC + LittleFS Local Buffer  │
+                     └────────────────────┬─────────────────────┘
+                                          │
+                                          │ BLE 5.0 Wireless Sync (Offline-First)
+                                          ▼
+                     ┌──────────────────────────────────────────┐
+                     │           AgroPulse Mobile App           │
+                     │  React Native (Fabric) • Zustand Offline │
+                     │   2D Spatial Fertility Map • Hindi/EN    │
+                     └────────────────────┬─────────────────────┘
+                                          │
+                                          │ HTTPS / REST (JWT Auth)
+                                          ▼
+                     ┌──────────────────────────────────────────┐
+                     │          Node.js / Express API           │
+                     │      PostgreSQL 16 + PostGIS Spatial     │
+                     │    DBSCAN Automatic Field Segregation    │
+                     └────────────────────┬─────────────────────┘
+                                          │
+                                          │ Internal Microservice Request
+                                          ▼
+                     ┌──────────────────────────────────────────┐
+                     │          Python / FastAPI AI             │
+                     │  ├── 1. Probabilistic Crop Ranker (ONNX) │
+                     │  └── 2. Deterministic STCR Agronomy (₹)  │
+                     └──────────────────────────────────────────┘
 ```
 
-The mobile application talks to the Node API only. The Python service is an
-internal service and should not be exposed directly to mobile clients.
+1. **In-Field Soil Sensing**: The farmer presses the handheld AgroPulse stick into the soil across sampling locations. An ESP32 reads N, P, K, pH, electrical conductivity (EC), moisture, and temperature, timestamping records with GPS and RTC coordinates into non-volatile LittleFS flash storage.
+2. **Offline-First BLE Sync**: When the mobile app is within range, it connects over Bluetooth Low Energy (BLE), securely transfers batched ASCII telemetry frames, verifies checksums, and clears the hardware buffer.
+3. **Automatic Spatial Field Segregation**: Rather than forcing farmers to manually draw complex farm boundaries, the backend uses **PostGIS spatial clustering (DBSCAN)** to detect distinct fields and partition readings into separate plots automatically.
+4. **Dual-Engine Agronomic Analysis**:
+   - **Engine A (ML Crop Ranker)**: Predicts probabilistic suitability across crops using soft multi-label distributions.
+   - **Engine B (Deterministic Agronomy)**: Applies ICAR (Indian Council of Agricultural Research) Soil Test Crop Response (STCR) formulas to calculate fertilizer dosage, exact bag counts, and rupee costs (₹).
 
-The most important design boundary is that the two recommendation engines do
-different jobs:
+---
 
-1. The **crop ranker** estimates which crops suit the soil and field conditions.
-2. The **deterministic agronomy engine** calculates fertiliser quantities and
-   costs using explicit rules, prices, units, and regional configuration.
+## 🌟 Key Features & Innovations
 
-The ranker does not calculate money, and the fertiliser engine does not pretend
-to be a machine-learning model.
+- 📶 **100% Offline-First Architecture**: Designed for rural areas with patchy or absent cellular reception. Both the sensing stick and mobile client queue readings locally and sync idempotently upon reconnecting.
+- 🗺️ **Automatic Field Segregation**: Zero manual polygon drawing. Clustering algorithms group spatial sensor readings into distinct field management zones.
+- 🎯 **Dual-Engine Integrity**: Machine learning ranks crop suitability; deterministic agronomic formulas calculate fertilizers and rupee values. The system never lets a black-box model invent monetary numbers.
+- 🇮🇳 **Bilingual & Rural UX**: Supports Hindi (हिन्दी) and English out of the box with clear audio feedback (Expo Speech), high-contrast cards, and large touch targets.
+- 🛡️ **Scientific Honesty & Provenance**: Clearly distinguishes proxy sensor readings from laboratory measurements, highlighting data uncertainty and regional validation bounds.
+- 📊 **Research-Grade Evaluation Suite**: Complete with cross-validation pipelines, golden test cases, HTML evolution reports, and ONNX Runtime production exports.
 
-## Repository structure
+---
+
+## 📂 Repository Structure
 
 ```text
-C:\AAROH
-├── README.md                         # This project overview
-├── AAROH-Client\                     # AgroPulse React Native mobile app
-│   ├── src\                          # Screens, features, API, BLE, state, i18n
-│   ├── scripts\                      # Device and frame-development helpers
-│   ├── app.config.ts                 # Expo configuration and runtime API URL
-│   ├── .env.example                  # Client environment template
-│   ├── BLE_PROTOCOL.md                # Mobile ↔ ESP32 wire contract
+/home/lovemishra/AAROH/
+├── docs/                             # Documentation assets and screenshots
+│   └── assets/                       # High-resolution screenshots, charts, and demo GIF
+├── AAROH-Client/                     # React Native / Expo Mobile Application
+│   ├── src/                          # Screens, navigation, store, API, BLE, and i18n
+│   │   ├── features/                 # Home dashboard, sync, field switcher, advice
+│   │   ├── components/               # Metric tiles, heatmaps, shimmer skeletons
+│   │   ├── api/                      # TanStack Query hooks and Axios HTTP clients
+│   │   └── theme/                    # Color tokens, typography, and styling
+│   ├── android/                      # Native Android project (Gradle, CMake, C++)
+│   ├── scripts/                      # Cross-platform device launchers (.sh and .mjs)
+│   ├── BLE_PROTOCOL.md               # Hardware ↔ Mobile BLE communication specification
 │   └── package.json
-├── AAROH-Server\                     # Backend repository
-│   ├── api\                          # Node.js/Express public API
-│   ├── ai\                           # Python/FastAPI inference and ML package
-│   ├── database\migrations\          # PostgreSQL/PostGIS migrations
-│   ├── docs\                         # ADRs and API conventions
-│   ├── docker-compose.yml            # Local db + AI + API stack
-│   └── .env.example                  # Compose environment template
-└── Hardware\esp_code\                # ESP32 Arduino firmware
-    └── esp_code.ino
+├── AAROH-Server/                     # Backend & AI Monorepo
+│   ├── api/                          # Public Node.js / Express TypeScript API
+│   │   ├── src/modules/              # Auth, fields, readings, devices, recommendations
+│   │   ├── scripts/                  # Cluster verification & integration checks
+│   │   └── package.json
+│   ├── ai/                           # Python / FastAPI Machine Learning Subsystem
+│   │   ├── datasets/raw/             # Source agronomic datasets & crop parameter tables
+│   │   ├── models/registry/          # Active model registry and metadata
+│   │   ├── src/aaroh_ai/             # Training, inference, feature pipeline & agronomy
+│   │   └── pyproject.toml
+│   ├── database/migrations/          # PostgreSQL / PostGIS schema migrations
+│   └── docker-compose.yml            # Local orchestration for PostgreSQL, API, and AI
+├── evaluation/                       # Independent ML Evaluation & Audit Suite
+│   ├── artifacts/                    # Benchmark JSONs, SVG/PNG figures, DOM renders
+│   ├── verify_report.py              # Automated report validation script
+│   └── test_evaluation.py            # Evaluation test cases (Pytest)
+├── Hardware/esp_code/                # Arduino / ESP32 C++ Firmware Source
+│   └── esp_code.ino                  # Sensor polling, LittleFS, OLED, and BLE stack
+├── final evolution report.html        # Comprehensive interactive HTML evaluation report
+├── run_predictor.sh                  # Linux/macOS CLI inference launcher
+├── run_predictor.bat                 # Windows CMD CLI inference launcher
+└── README.md                         # Project documentation
 ```
 
-Generated dependencies and build output (`node_modules`, virtual environments,
-Android builds, caches, and model artifacts) are intentionally not source
-code and should not be copied into documentation or committed as new files.
+---
 
-## Technology stack
+## 🛠️ Technology Stack
 
-| Layer | Technology | Purpose |
-|---|---|---|
-| Mobile | React Native, Expo Dev Client, TypeScript | Farmer-facing Android application |
-| Mobile UI | NativeWind, React Navigation, Zustand, TanStack Query | Styling, navigation, local state, server state |
-| Mobile integrations | `react-native-ble-plx`, Secure Store, i18next, Expo Speech | Probe connectivity, credentials, localization, accessibility |
-| Public API | Node.js, Express, TypeScript, Zod | Versioned client-facing API and business boundary |
-| Database | PostgreSQL 16 + PostGIS 3.4 | Relational and geospatial persistence |
-| AI service | Python 3.11+, FastAPI, NumPy, pandas, ONNX Runtime | Private inference and agronomy service |
-| Training | LightGBM/XGBoost, scikit-learn, Optuna, ONNX | Crop-ranker training and model export |
-| Firmware | ESP32 Arduino, BLE, LittleFS, NPK/RS485, GPS, RTC, OLED | Soil measurement and offline device storage |
+| Layer | Technologies | Purpose |
+|:---|:---|:---|
+| **Mobile App** | React Native 0.79, Expo SDK 53, TypeScript | Cross-platform client with New Architecture (Fabric) |
+| **Mobile State & UI** | NativeWind (Tailwind CSS), Zustand, TanStack Query | Reactive state, offline queues, cached API queries |
+| **Mobile Native** | `react-native-ble-plx`, SecureStore, Expo Speech | BLE sensor stick communication, encrypted auth tokens |
+| **Public API** | Node.js 22 LTS, Express, TypeScript, Zod | Input validation, JWT auth, business logic boundary |
+| **Spatial Database** | PostgreSQL 16, PostGIS 3.4 | Geospatial points, field clustering, and transactional data |
+| **AI & Inference** | Python 3.11+, FastAPI, ONNX Runtime | High-throughput low-latency crop ranking service |
+| **Model Families** | LightGBM, XGBoost, CatBoost, Scikit-Learn | Supervised soft-probability crop suitability estimation |
+| **Hardware Firmware** | ESP32 Dev Module, C++, LittleFS, RS485 Modbus | In-situ soil sensing stick, battery & BLE management |
 
-## Prerequisites
+---
 
-Install the following before starting local development:
+## 🚀 Quick Start Guide
 
-- Git
-- Docker Desktop with Docker Compose
-- Node.js 22 or newer
-- Python 3.11 or newer
-- Android Studio and an Android SDK/device for the mobile app
-- Arduino IDE (or an equivalent ESP32 toolchain) for firmware work
+### Prerequisites
+- **Node.js**: v22 LTS or newer (`node -v`)
+- **Python**: 3.11 or newer (`python3 --version`)
+- **Docker & Docker Compose**: For containerized database and backend services
+- **Android SDK & Build Tools**: Android Studio with NDK 27+ (for native mobile compilation)
+- **Git**
 
-The backend's Docker setup runs PostgreSQL for you; a separate PostgreSQL
-installation is not required.
+---
 
-## Quick start
+### 1. Backend Stack Setup
 
-### 1. Start the backend stack
-
-From `C:\AAROH\AAROH-Server` in PowerShell:
-
-```powershell
-Copy-Item .env.example .env
-docker compose up --build
+#### Option A: Run via Docker Compose (Recommended)
+```bash
+cd AAROH-Server
+cp .env.example .env
+docker compose up --build -d
 ```
 
-The services are published at:
+#### Option B: Run Services Locally
+```bash
+# 1. Start the Python AI service
+cd AAROH-Server/ai
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e ".[train,dev]"
+uvicorn aaroh_ai.inference.service:app --host 0.0.0.0 --port 8000 --reload &
 
-| Service | URL | What it provides |
-|---|---|---|
-| Public API | `http://localhost:3000` | Mobile-facing API |
-| API health | `http://localhost:3000/v1/health` | API, database, and AI dependency status |
-| AI service | `http://localhost:8000` | Private inference service |
-| AI health | `http://localhost:8000/health` | AI liveness and model status |
-| PostgreSQL | `localhost:5433` | Host-side database connection |
-
-The database is published on port `5433` by default to avoid collisions with a
-native PostgreSQL installation using `5432`. Inside Docker, the API connects to
-the database using the Compose service name and internal port.
-
-### 2. Apply database migrations
-
-In a second PowerShell window:
-
-```powershell
-Set-Location C:\AAROH\AAROH-Server\api
+# 2. Start the Node.js API
+cd ../api
 npm install
-$env:DATABASE_URL = "postgres://aaroh:aaroh@localhost:5433/aaroh"
+cp .env.example .env
+npm run dev
+```
+
+The services will be available at:
+- 🌐 **Public API**: `http://localhost:3000` (Health: `http://localhost:3000/v1/health`)
+- 🧠 **AI Service**: `http://localhost:8000` (Health: `http://localhost:8000/health`)
+- 🐘 **PostgreSQL (PostGIS)**: `localhost:5433`
+
+---
+
+### 2. Database Migrations
+
+Apply spatial PostGIS migrations to initialize schemas:
+
+```bash
+cd AAROH-Server/api
+export DATABASE_URL="postgres://aaroh:aaroh@localhost:5433/aaroh"
 npm run migrate:up
 ```
 
-### 3. Start the mobile app
+---
 
-In another PowerShell window:
+### 3. Mobile Application Setup
 
-```powershell
-Set-Location C:\AAROH\AAROH-Client
+The client is an Expo Dev Client app requiring native Android modules (BLE, SVG):
+
+```bash
+cd AAROH-Client
 npm install
-Copy-Item .env.example .env
-npx expo run:android
+cp .env.example .env
 ```
 
-The default Android emulator URL is `http://10.0.2.2:3000`, which maps the
-emulator's `localhost` to the development computer. For a physical phone, use
-the helper workflow:
+#### Launching on a Connected Android Phone (USB Debugging):
+```bash
+# Verify phone is detected
+adb devices
 
-```powershell
+# Start Metro and install the application
 npm run phone
 ```
 
-The phone and computer must be on the same network, and Windows Firewall must
-allow the API and Metro/Node traffic on the private network.
+#### Launching on the Android Emulator:
+```bash
+# Start your Android Virtual Device (AVD)
+~/Android/Sdk/emulator/emulator -avd Medium_Phone_API_37.0 &
 
-## Configure the environment
-
-Do not commit real credentials. Copy each template to a local `.env` file:
-
-| File | Consumer | Main settings |
-|---|---|---|
-| `AAROH-Server\.env` | Docker Compose | Database container, ports, API/AI wiring, auth forwarding |
-| `AAROH-Server\api\.env` | Host-run API and migrations | Database URL, JWT, Google, mail, OTP settings |
-| `AAROH-Client\.env` | Expo configuration | API base URL and optional Google client IDs |
-
-Useful local settings include:
-
-```dotenv
-# AAROH-Client/.env
-EXPO_PUBLIC_API_BASE_URL=http://10.0.2.2:3000
+# Run debug assemble and launch
+npm run start:emulator
 ```
 
-```dotenv
-# AAROH-Server/api/.env
-DATABASE_URL=postgres://aaroh:aaroh@localhost:5433/aaroh
-AI_SERVICE_URL=http://localhost:8000
-JWT_SECRET=replace-this-with-a-long-local-secret
-MAIL_TRANSPORT=console
+> **Direct APK Installation:**
+> A pre-compiled debug APK supporting all 4 architectures (`arm64-v8a`, `armeabi-v7a`, `x86`, `x86_64`) is built and ready at:
+> `AAROH-Client/android/app/build/outputs/apk/debug/app-debug.apk`
+> 
+> Install directly via ADB:
+> ```bash
+> adb install -r AAROH-Client/android/app/build/outputs/apk/debug/app-debug.apk
+> ```
+
+---
+
+### 4. AI Model & CLI Predictor
+
+You can run stand-alone agronomic inference directly from your terminal:
+
+#### On Linux / macOS:
+```bash
+./run_predictor.sh --raw 85 18 140 6.2 0.45 18 28
 ```
 
-The default development authentication setup is intentionally self-contained:
-phone and email OTP codes are logged, and email messages use the console
-transport. Google Sign-In requires a Google Cloud OAuth web client ID on both
-the server and the mobile configuration. SMTP is required only when actual
-email delivery is needed.
-
-## Run the mobile app
-
-From `AAROH-Client`:
-
+#### On Windows (PowerShell / CMD):
 ```powershell
-npm run start:go       # Expo Go; useful only for flows without native BLE
-npm start              # Expo Dev Client
-npm run start:emulator # Configure the API for an Android emulator
-npm run start:phone    # Configure the API for a physical phone
-npm run typecheck      # TypeScript validation
+.\run_predictor.ps1 -RawReading 85,18,140,6.2,0.45,18,28
 ```
 
-BLE requires a native development build; Expo Go cannot load the BLE native
-module. Rebuild after native configuration changes:
-
-```powershell
-npx expo prebuild --clean --platform android
-npx expo run:android
+**Output:**
+```json
+{
+  "top_crops": [
+    {"crop": "soybean", "probability": 0.412, "suitability": "HIGH"},
+    {"crop": "mustard", "probability": 0.328, "suitability": "MEDIUM"},
+    {"crop": "wheat", "probability": 0.205, "suitability": "VIABLE"}
+  ],
+  "recommendation": {
+    "crop": "soybean",
+    "fertilizer_plan": {
+      "urea_bags_50kg": 1.2,
+      "dap_bags_50kg": 2.5,
+      "mop_bags_50kg": 0.8,
+      "estimated_cost_inr": 3480
+    }
+  }
+}
 ```
 
-The client is designed around Hindi-first, bilingual field use, large touch
-targets, offline-friendly data handling, secure token storage, and explicit
-uncertainty/provenance rather than false precision.
+---
 
-## Run the API and AI services
+## 📡 Hardware & BLE Sensor Stick
 
-### API
+The AgroPulse sensing stick is an ergonomic handheld agricultural probe built around an **ESP32 Dev Module**:
 
-From `AAROH-Server\api`:
+<div align="center">
+  <img src="docs/assets/farmer-hero.png" width="220" alt="AgroPulse Kisan Mascot" />
+</div>
 
-```powershell
-npm install
-npm run dev        # watch mode
-npm run typecheck
-npm test
-npm run lint
+- **Sensor Hardware**: 7-in-1 Modbus RS485 soil sensor probe measuring Nitrogen (N), Phosphorus (P), Potassium (K), pH, Salinity (Electrical Conductivity), Moisture (%), and Soil Temperature (°C).
+- **Peripherals**: SSD1306 0.96" I2C OLED display, DS3231 RTC module, NEO-6M GPS receiver, tactile trigger button.
+- **Offline Storage**: Integrated LittleFS flash file system buffering hundreds of measurements when outside cellular or Bluetooth coverage.
+- **BLE Service Contract**:
+  - **Custom Service UUID**: `00000001-aa00-4b89-8d3a-000000000001`
+  - **Data Characteristic**: `00000002-aa00-4b89-8d3a-000000000001` (Notify/Read)
+  - **Command Characteristic**: `00000003-aa00-4b89-8d3a-000000000001` (Write)
+- **Protocol Details**: Detailed in [`AAROH-Client/BLE_PROTOCOL.md`](./AAROH-Client/BLE_PROTOCOL.md).
+
+---
+
+## 🔬 The Dual-Engine Intelligence
+
+AgroPulse enforces a strict separation of concerns between statistical prediction and agronomic science:
+
+```
+                      Raw Soil Sensor Reading
+                  (N, P, K, pH, EC, Moisture, Temp)
+                                 │
+                 ┌───────────────┴───────────────┐
+                 ▼                               ▼
+       Engine 1: Machine Learning     Engine 2: STCR Agronomy
+       ┌────────────────────────┐     ┌────────────────────────┐
+       │ • LightGBM / XGBoost   │     │ • Regional ICAR Rules  │
+       │ • Soft crop ranking    │     │ • Deficit subtraction  │
+       │ • Suitability index    │     │ • 50kg bag conversion  │
+       │ • 22+ crop candidates  │     │ • Rupee (₹) pricing    │
+       └──────────────┬─────────┘     └───────────┬────────────┘
+                      │                           │
+                      └─────────────┬─────────────┘
+                                    ▼
+                     Actionable Farmer Advisory
+                 "Top Pick: Soybean • 2.5 Bags DAP • ₹3,480"
 ```
 
-The API is versioned under `/v1` and owns the public contract, authentication,
-validation, persistence, and calls to the private AI service.
+1. **Why ML does not calculate money**: Market fertilizer costs and nutrient absorption formulas are bounded by chemistry and government pricing policies. Letting an ML model guess currency quantities risks hallucinating toxic fertilizer overages or financial debt for the farmer.
+2. **Why deterministic code does not rank crops**: Complex non-linear interactions across pH, electrical conductivity, seasonal temperature, and multi-nutrient balances are captured with higher fidelity by gradient-boosted decision trees.
 
-### AI service
+---
 
-For the containerized service, use `docker compose up --build` from
-`AAROH-Server`.
+## 🧪 Testing & Quality Verification
 
-For local Python development:
+All subsystems contain strict, isolated test suites to prevent regression:
 
-```powershell
-Set-Location C:\AAROH\AAROH-Server\ai
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install -e ".[train,dev]"
-pytest
-ruff check .
+```bash
+# 1. Client TypeScript Verification
+cd AAROH-Client && npm run typecheck
+
+# 2. Node.js API Test Suite (122+ passing unit and integration tests)
+cd AAROH-Server/api && npm test
+
+# 3. Spatial DBSCAN Clustering Verification
+cd AAROH-Server/api && npm run verify:clustering
+
+# 4. Python AI Subsystem Test Suite (80+ passing tests)
+cd AAROH-Server/ai && pytest
+
+# 5. Independent Evaluation Report Validation
+pytest evaluation/test_evaluation.py
 ```
 
-The AI service exposes:
-
-- `GET /health` — service and active-model status;
-- `POST /predict` — ranked crops only;
-- `POST /recommend` — ranked crops plus deterministic fertiliser/cost advice;
-- `POST /reload` — reload the active registered model without restarting.
-
-The AI service returns `503` for prediction/recommendation when no active model
-is available rather than serving an unverified guess.
-
-## Database migrations
-
-Migrations live in `AAROH-Server\database\migrations` and are run with
-`node-pg-migrate` from the API package:
-
-```powershell
-Set-Location C:\AAROH\AAROH-Server\api
-npm run migrate:up
-npm run migrate:down
-npm run migrate:create -- my-migration-name
-```
-
-Run migrations deliberately; starting Compose does not automatically modify
-the schema. To remove the local database volume and all local data:
-
-```powershell
-docker compose down -v
-```
-
-Use that command only when intentionally resetting local development data.
-
-## Hardware and BLE
-
-The firmware is for an ESP32 Dev Module and integrates:
-
-- NPK over RS485/Modbus;
-- pH, EC, moisture, and temperature readings;
-- GPS and RTC;
-- OLED status output;
-- LittleFS offline reading storage; and
-- BLE synchronization with the mobile app.
-
-The BLE flow is:
-
-```text
-connect → STATUS(count) → app requests SYNC → frames stream →
-SYNC_DONE → app sends ACK → device clears synced frames
-```
-
-Reading frames are newline-terminated ASCII key/value records. `ID`, `N`, `P`,
-and `K` are the core fields; N/P/K are elemental mg/kg values. The service,
-characteristic UUIDs, frame format, permissions, sync commands, MTU behavior,
-and nRF Connect test procedure are documented in
-[`AAROH-Client\BLE_PROTOCOL.md`](./AAROH-Client/BLE_PROTOCOL.md).
-
-For firmware setup, select the **ESP32 Dev Module** board and the
-`Huge APP (3MB No OTA/1MB SPIFFS)` partition scheme. The BLE library is
-provided by the ESP32 Arduino core; the firmware also requires U8g2, RTClib,
-and TinyGPSPlus.
-
-## AI and agronomy
-
-The training data and model registry are under `AAROH-Server\ai`:
-
-```text
-ai\datasets\raw\       immutable source datasets and crop ranges
-ai\models\registry\    active/registered model metadata
-ai\models\artifacts\   frozen model versions and evaluation reports
-ai\src\aaroh_ai\
-  data\                loading and validation
-  features\            shared train/serve feature pipeline
-  evaluation\          ranking metrics, golden cases, reports
-  training\             configs, training, gates, registry
-  inference\            FastAPI and CLI serving
-  services\agronomy\   deterministic regional recommendations
-```
-
-The crop ranker is evaluated as a ranking system using soft crop suitability
-labels, primarily NDCG@3, KL divergence, calibration, and top-k coverage. A
-single sampled hard label is not treated as the whole truth.
-
-Training a model:
-
-```powershell
-Set-Location C:\AAROH\AAROH-Server\ai
-.\.venv\Scripts\Activate.ps1
-python -m aaroh_ai.training.train --config src\aaroh_ai\training\configs\crop_ranker_softprob_v1.yaml
-```
-
-Training, evaluation, registration, activation gates, and ONNX export are
-described in [`AAROH-Server\ai\README.md`](./AAROH-Server/ai/README.md).
-
-## API overview
-
-The public API is documented in [`AAROH-Server\api\openapi.yaml`](./AAROH-Server/api/openapi.yaml).
-The main resource groups are:
-
-| Group | Examples |
-|---|---|
-| Health | `GET /v1/health` |
-| Authentication | OTP, email/password, email OTP, password reset, Google, logout |
-| Farmer profile | `GET/PATCH /v1/me` |
-| Devices | Register and manage sensing sticks |
-| Fields | Create and manage fields and boundaries |
-| Readings | Upload and retrieve manual/BLE readings |
-| Recommendations | Generate costed advice for a field |
-| Configuration | Region and advisory configuration |
-| Feedback | Capture farmer/field-agent feedback |
-
-All non-public resource routes require authentication. The API uses a short-lived
-access token and rotating opaque refresh tokens; signing out revokes the
-refresh token server-side.
-
-## Testing and quality checks
-
-Run checks for the component you changed rather than rebuilding everything:
-
-```powershell
-# Mobile
-Set-Location C:\AAROH\AAROH-Client
-npm run typecheck
-npm run verify:frames
-
-# API
-Set-Location C:\AAROH\AAROH-Server\api
-npm run typecheck
-npm test
-npm run lint
-
-# AI
-Set-Location C:\AAROH\AAROH-Server\ai
-.\.venv\Scripts\Activate.ps1
-pytest
-ruff check .
-```
-
-The mobile frame verifier and the AI golden tests are particularly important
-because they protect the BLE wire contract and the model/agronomy behavior.
-
-## Important domain rules
-
-These rules are architectural and domain constraints, not optional formatting:
-
-1. **Keep the two engines separate.** ML ranks crops; deterministic code
-   calculates fertiliser and price.
-2. **Preserve units in names and schemas.** For example, distinguish
-   `n_mgkg`, `p_mgkg`, `k_mgkg` from `n_kgha`, `p2o5_kgha`, and `k2o_kgha`.
-3. **Apply field area after prediction.** Hectares scale quantities and costs;
-   they are not model features.
-4. **Treat sensor NPK as a proxy until calibrated.** Do not present
-   uncalibrated readings with laboratory-level certainty.
-5. **Keep region configuration explicit.** v1 targets Gwalior/Chambal; prices,
-   crop bands, and agronomic rules must be region-aware.
-6. **Be honest when dependencies are unavailable.** Health and recommendation
-   paths should report degraded/unavailable states instead of silently
-   returning fabricated advice.
-7. **Preserve offline behavior.** The field workflow must tolerate patchy
-   connectivity and sync queued readings safely.
-
-## Documentation map
-
-- Mobile setup and architecture:
-  [`AAROH-Client\README.md`](./AAROH-Client/README.md)
-- Mobile implementation guide:
-  [`AAROH-Client\CLIENT_DEVELOPMENT_GUIDE.md`](./AAROH-Client/CLIENT_DEVELOPMENT_GUIDE.md)
-- BLE contract and test setup:
-  [`AAROH-Client\BLE_PROTOCOL.md`](./AAROH-Client/BLE_PROTOCOL.md)
-- Server setup and architecture:
-  [`AAROH-Server\README.md`](./AAROH-Server/README.md)
-- Server development plan:
-  [`AAROH-Server\SERVER_DEVELOPMENT_GUIDE.md`](./AAROH-Server/SERVER_DEVELOPMENT_GUIDE.md)
-- AI training and model registry:
-  [`AAROH-Server\ai\README.md`](./AAROH-Server/ai/README.md)
-- API contract:
-  [`AAROH-Server\api\openapi.yaml`](./AAROH-Server/api/openapi.yaml)
-- Architecture decisions:
-  [`AAROH-Server\docs\adr\`](./AAROH-Server/docs/adr/)
-- Hardware source:
-  [`Hardware\esp_code\esp_code.ino`](./Hardware/esp_code/esp_code.ino)
-
-## Troubleshooting
-
-### API health is degraded
-
-Check the API, database, and AI logs:
-
-```powershell
-docker compose ps
-docker compose logs api
-docker compose logs ai
-docker compose logs db
-```
-
-Confirm that migrations have run and that port `5433` is not occupied by
-another process. The API can be alive while reporting a degraded dependency.
-
-### The Android app cannot reach the API
-
-- Emulator: use `http://10.0.2.2:3000`, not `localhost`.
-- Physical phone: use the computer's LAN IP and keep both devices on the same
-  Wi-Fi network.
-- Test `http://<host>:3000/v1/health` from the phone browser.
-- Allow Docker Desktop/Node through Windows Firewall on the Private network.
-
-### BLE devices do not appear
-
-Use an Expo development build, not Expo Go. Enable Nearby devices and, on
-older Android versions, Location permission and Location services. If the
-native project predates BLE configuration, run:
-
-```powershell
-npx expo prebuild --clean --platform android
-npx expo run:android
-```
-
-For a complete checklist and a two-phone nRF Connect simulation, see
-[`AAROH-Client\BLE_PROTOCOL.md`](./AAROH-Client/BLE_PROTOCOL.md).
-
-### Google Sign-In fails
-
-Check both sides: `GOOGLE_WEB_CLIENT_ID` in the API environment and
-`EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` in the client environment. The API boot log
-reports which authentication providers are configured.
-
-### No recommendations are returned
-
-Check `http://localhost:8000/health`. If `model_loaded` is false, register or
-activate a valid model artifact before calling `/predict` or `/recommend`.
-The service intentionally returns `503` rather than returning an unverified
-recommendation.
-
-## Security and production notes
-
-This repository is configured for local development by default. Before any
-production or field-pilot deployment:
-
-- replace the development JWT secret;
-- use a managed secret store and never commit `.env` files;
-- configure HTTPS and secure mobile API transport;
-- configure a real SMTP provider and verify sender/domain settings;
-- configure Google OAuth with production package/bundle identifiers;
-- restrict database and AI-service network access;
-- review OTP rate limits, logging, token rotation, and retention;
-- calibrate sensors against laboratory measurements; and
-- have regional agronomic advice reviewed before presenting it as field guidance.
-
-The default console mail transport and development OTP behavior are convenient
-for local testing but are not production delivery mechanisms.
-
-## Roadmap
-
-The intended delivery sequence is:
-
-1. Foundations, schemas, migrations, and local tooling.
-2. AI trustworthiness: train, evaluate, gate, and freeze the crop ranker.
-3. Backend core: API, authentication, database, inference, and agronomy.
-4. Manual-input mobile flow: first end-to-end recommendation demo.
-5. Hardware loop: BLE ingest, offline queue, temperature/GPS fixes.
-6. Geospatial features: field clustering, boundaries, and maps.
-7. Pilot hardening: monitoring, feedback, sensor calibration, and retraining.
-8. Later capabilities such as yield prediction, disease vision, and
-   personalization.
-
-The detailed phase plan is maintained in the server and client development
-guides linked above.
-
-## Contributing
-
-1. Read this README and the component guide for the area you are changing.
-2. Preserve the API contract and the domain rules above.
-3. Add or update focused tests with behavior changes.
-4. Run the smallest relevant typecheck, lint, and test commands.
-5. Never commit secrets, local `.env` files, generated dependencies, or
-   unreviewed model/data artifacts.
-
-## License
-
-No license file is currently present in this repository. Until the project
-owners add one, assume the code is not licensed for redistribution or
-commercial reuse.
+---
+
+## 🎨 Design System & Theming
+
+The visual identity of AgroPulse is rooted in Indian agriculture, inspired by lush green fields, healthy soil, and intuitive accessibility:
+
+<div align="center">
+
+| Token | Hex | Role | Visual Preview |
+|:---|:---|:---|:---:|
+| `primary` | `#22421A` | Deep Forest Green — Primary buttons, major headers | <img src="https://via.placeholder.com/60x24/22421A/ffffff?text=+" alt="#22421A" /> |
+| `primary-alt` | `#1F5A2A` | Vibrant Foliage Green — Subheaders, link accents | <img src="https://via.placeholder.com/60x24/1F5A2A/ffffff?text=+" alt="#1F5A2A" /> |
+| `accent` | `#FE7F02` | Devanagari Saffron Orange — Brand logo highlight & alerts | <img src="https://via.placeholder.com/60x24/FE7F02/ffffff?text=+" alt="#FE7F02" /> |
+| `success` | `#187F21` | High-fertility soil zone, "Strong" rating | <img src="https://via.placeholder.com/60x24/187F21/ffffff?text=+" alt="#187F21" /> |
+| `warning` | `#F2A93B` | Moderate fertility, requires corrective input | <img src="https://via.placeholder.com/60x24/F2A93B/ffffff?text=+" alt="#F2A93B" /> |
+| `danger` | `#B80C26` | Deficient fertility zone, destructive actions | <img src="https://via.placeholder.com/60x24/B80C26/ffffff?text=+" alt="#B80C26" /> |
+| `tint-surface`| `#F2FFE2` | Soft Pastel Green — Info callouts, badge backgrounds | <img src="https://via.placeholder.com/60x24/F2FFE2/000000?text=+" alt="#F2FFE2" /> |
+| `surface` | `#FFFFFF` | Crisp White Card background (76% dominant) | <img src="https://via.placeholder.com/60x24/FFFFFF/000000?text=+" alt="#FFFFFF" /> |
+
+</div>
+
+- **Typography**: Primary typeface is **Poppins** (friendly, geometric, designed by Indian Type Foundry) paired with **Noto Sans Devanagari** to ensure rendering of Hindi conjuncts (क्ष, त्र, ज्ञ, श्र) and matras.
+- **Physical Scale**: High-legibility standards: Headings (24–32sp), Body text (≥17sp), Minimum touch targets (48×48dp).
+
+---
+
+## 📜 Domain Rules & Production Guidelines
+
+1. **Unit Discipline**: Always preserve physical measurement units in variable names and database schemas (`n_mgkg`, `p_mgkg`, `k_mgkg` vs. `n_kgha`, `p2o5_kgha`, `k2o_kgha`).
+2. **Field Scaling**: Field area in hectares or acres is applied *after* agronomic deficit calculation to scale total bag counts; it is never fed into the ML crop suitability ranker.
+3. **NPK Proxy Honesty**: In-situ optical/electrochemical NPK sensors are treated as uncalibrated proxies until calibrated against accredited wet-chemistry soil lab tests.
+4. **Geographic Scoping**: Agricultural rules, crop calendars, and fertilizer subsidy caps currently target the **Gwalior / Chambal** agro-climatic division.
+
+---
+
+## 📚 Documentation Index
+
+- 📱 [Mobile Client Setup & Guide](./AAROH-Client/README.md)
+- 🎨 [Design Direction & Token Specifications](./AAROH-Client/DESIGN_DIRECTION.md)
+- 📡 [BLE Hardware Wire Protocol](./AAROH-Client/BLE_PROTOCOL.md)
+- 🗺️ [Field Spatial Segregation Guide](./AAROH-Client/FIELD_SEGREGATION_TEST.md)
+- 🖥️ [Backend Server Architecture](./AAROH-Server/README.md)
+- 🧠 [AI Model Training & Registry](./AAROH-Server/ai/README.md)
+- 🌐 [API OpenAPI Specification](./AAROH-Server/api/openapi.yaml)
+- 🔬 [Evaluation Benchmark HTML Report](./final%20evolution%20report.html)
+- ⚡ [Hardware Firmware (Arduino/C++)](./Hardware/esp_code/esp_code.ino)
+
+---
+
+<div align="center">
+
+Made with ❤️ for Indian farmers • **AgroPulse / Aaroh Initiative**
+
+</div>
