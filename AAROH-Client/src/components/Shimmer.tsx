@@ -43,7 +43,7 @@ export function Shimmer({
   });
 
   return (
-    <View style={[StyleSheet.absoluteFillObject, { overflow: 'hidden', backgroundColor: 'rgba(230, 235, 240, 0.4)' }]}>
+    <View style={[StyleSheet.absoluteFill, { overflow: 'hidden', backgroundColor: 'rgba(230, 235, 240, 0.4)' }]}>
       <Animated.View
         style={[
           {

@@ -6,6 +6,7 @@
 # Dependencies
 node_modules/
 .venv/
+.venv
 venv/
 __pycache__/
 *.py[cod]
@@ -34,3 +35,17 @@ dist/
 .idea/
 .DS_Store
 Thumbs.db
+
+# One-off terminal AI prediction scripts and research outputs
+field_analysis.py
+field_predict.py
+research_predictions.csv
+research_summary.md
+run_predictor.bat
+run_predictor.ps1
+run_predictor.sh
+sample_hardware_readings.txt
+RESEARCH_FIELD_PREDICTION_GUIDE.md
+AAROH-Server/ai/field_analysis.py
+AAROH-Server/ai/field_results.rar
+AAROH-Server/ai/field_results/

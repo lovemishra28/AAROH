@@ -231,7 +231,7 @@ export function HomeScreen() {
                     {means.slice(3).map(({ metric, value }, index) => {
                       const layout = gridLayout[index % 4];
                       return (
-                        <Animated.View key={metric.id} layout={LinearTransition} style={{ width: layout.w, minWidth: 115, height: layout.h, marginBottom: 12 }}>
+                        <Animated.View key={metric.id} layout={LinearTransition} style={{ width: layout.w as any, minWidth: 115, height: layout.h, marginBottom: 12 }}>
                           <MetricTile
                             label={t(metric.labelKey)}
                             value={formatMetric(value, metric)}

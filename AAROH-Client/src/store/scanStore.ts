@@ -162,22 +162,22 @@ export const useScanStore = create<ScanState>()((set, get) => ({
       const history = await api.get<HistoryReading[]>('/v1/readings/history');
       const serverItems: ScannedReading[] = history.map((r) => ({
         id: r.id,
-        received_at: r.taken_at,
-        measured_at: r.taken_at, // HistoryReading has taken_at
+        received_at: r.taken_at ?? r.created_at,
+        measured_at: r.taken_at ?? r.created_at, // HistoryReading has taken_at
         probe_id: r.device_serial ?? 'Unknown',
         firmware_version: r.device_firmware_version ?? 'Unknown',
         device_model: null,
         session_id: r.session_id,
-        n_mgkg: r.n_mgkg,
-        p_mgkg: r.p_mgkg,
-        k_mgkg: r.k_mgkg,
-        ph: r.ph,
-        ec_uscm: r.ec_uscm,
-        moisture_vwc: r.moisture_vwc,
-        soil_temp_c: r.soil_temp_c,
+        n_mgkg: r.n_mgkg ?? null,
+        p_mgkg: r.p_mgkg ?? null,
+        k_mgkg: r.k_mgkg ?? null,
+        ph: r.ph ?? null,
+        ec_uscm: r.ec_uscm ?? null,
+        moisture_vwc: r.moisture_vwc ?? null,
+        soil_temp_c: r.soil_temp_c ?? null,
         lat: r.location?.coordinates[1] ?? null,
         lng: r.location?.coordinates[0] ?? null,
-        raw_frame: r.raw_frame,
+        raw_frame: r.raw_frame ?? null,
         uploaded_at: r.created_at,
       }));
 
